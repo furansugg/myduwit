@@ -125,7 +125,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           style={{ backgroundColor: currentTheme.accent2 }}
         >
           <p className="text-[10px] font-black uppercase text-stone-900 mb-1 opacity-70">Developed by</p>
-          <p className="font-bold text-stone-900 italic tracking-tight">Retro Studio 2025</p>
+          <p className="font-bold text-stone-900 italic tracking-tight">cXrefulTEAM</p>
         </div>
       </aside>
     </>
