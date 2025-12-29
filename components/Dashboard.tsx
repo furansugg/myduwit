@@ -14,6 +14,8 @@ interface DashboardProps {
   accounts: Account[];
   onDeleteTransaction: (id: string) => void;
   onNavigateToWallets: () => void;
+  onAddTransaction: () => void;
+  isAddDisabled: boolean;
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ 
@@ -22,7 +24,9 @@ const Dashboard: React.FC<DashboardProps> = ({
   transactions, 
   accounts, 
   onDeleteTransaction,
-  onNavigateToWallets 
+  onNavigateToWallets,
+  onAddTransaction,
+  isAddDisabled
 }) => {
   const [aiTip, setAiTip] = useState<string>("Sistem sedang menganalisis dompetmu...");
   const [isLoadingTip, setIsLoadingTip] = useState(true);
@@ -64,8 +68,8 @@ const Dashboard: React.FC<DashboardProps> = ({
   return (
     <div className="space-y-10 relative pb-10">
       {/* AI Greeting Bubble */}
-      <div className="flex justify-center md:justify-start mb-12 md:mb-16">
-        <div className="bg-stone-900 text-white p-5 sm:p-6 border-4 sm:border-8 border-stone-900 retro-shadow-sm w-full sm:inline-block sm:min-w-[280px] max-w-2xl relative animate-in slide-in-from-left-6 duration-500">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 mb-12">
+        <div className="bg-stone-900 text-white p-5 sm:p-6 border-4 sm:border-8 border-stone-900 retro-shadow-sm w-full md:max-w-2xl relative animate-in slide-in-from-left-6 duration-500">
            <div className="flex items-center gap-4 mb-4">
              <div className="w-8 h-8 sm:w-10 h-10 bg-yellow-300 rounded-full flex items-center justify-center border-2 sm:border-4 border-white rotate-12 shrink-0">
                <span className="text-[10px] sm:text-xs text-stone-900 font-black">AI</span>
@@ -96,6 +100,17 @@ const Dashboard: React.FC<DashboardProps> = ({
               Ka-Ching!
            </div>
         </div>
+        {/* Action Button Desktop */}
+        <button 
+          onClick={onAddTransaction}
+          disabled={isAddDisabled}
+          className="hidden lg:flex items-center gap-4 bg-[#63e6be] border-[6px] border-stone-900 px-10 py-6 font-black uppercase italic text-xl retro-shadow-hover hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap group shrink-0"
+        >
+          <div className="bg-white p-2 border-2 border-stone-900 group-hover:rotate-90 transition-transform">
+            <Icons.Plus />
+          </div>
+          Catat Transaksi
+        </button>
       </div>
 
       {/* Summary Cards */}
