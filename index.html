@@ -1,9 +1,48 @@
+
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>myDuwit - Retro Finance</title>
+    <title>myDuwit - Aplikasi Catat Keuangan Retro Cloud Sync</title>
+    
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="Kelola keuangan pribadi dengan gaya retro yang keren. myDuwit membantu Anda mencatat pengeluaran, pemasukan, dan budget secara aman dengan sinkronisasi cloud.">
+    <meta name="keywords" content="catat keuangan, aplikasi keuangan, retro finance, budget manager, pengelola uang, myduwit, hemat pangkal kaya">
+    <meta name="author" content="cXrefulTEAM">
+    <link rel="canonical" href="https://myduwit.app" />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://myduwit.app/">
+    <meta property="og:title" content="myDuwit - Atur Uang Jadi Lebih Bergaya">
+    <meta property="og:description" content="Aplikasi pencatat keuangan dengan desain Neobrutalism Retro. Aman, cepat, dan tersinkronisasi di semua perangkat.">
+    <meta property="og:image" content="https://rnhbfjcurbwpoktipctv.supabase.co/storage/v1/object/public/assets/og-image.png">
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://myduwit.app/">
+    <meta property="twitter:title" content="myDuwit - Retro Finance Tracker">
+    <meta property="twitter:description" content="Bosan dengan aplikasi keuangan yang kaku? Coba myDuwit! Catat pengeluaran dengan gaya retro 90-an.">
+    <meta property="twitter:image" content="https://rnhbfjcurbwpoktipctv.supabase.co/storage/v1/object/public/assets/og-image.png">
+
+    <!-- Structured Data for Google -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "myDuwit",
+      "operatingSystem": "All",
+      "applicationCategory": "FinanceApplication",
+      "description": "Aplikasi pencatat keuangan pribadi dengan gaya desain retro neobrutalism.",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "IDR"
+      }
+    }
+    </script>
+
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <style>
@@ -15,72 +54,101 @@
         body {
             font-family: 'Space Grotesk', sans-serif;
             background-color: var(--retro-bg);
-            background-image: radial-gradient(var(--retro-black) 0.5px, transparent 0.5px);
-            background-size: 24px 24px;
+            background-image: 
+                linear-gradient(rgba(28, 25, 23, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(28, 25, 23, 0.05) 1px, transparent 1px),
+                radial-gradient(var(--retro-black) 0.5px, transparent 0.5px);
+            background-size: 40px 40px, 40px 40px, 24px 24px;
             background-attachment: fixed;
-            opacity: 0.95;
             margin: 0;
             color: var(--retro-black);
-            transition: background-color 0.3s ease, color 0.3s ease;
-        }
-        .retro-shadow {
-            box-shadow: 6px 6px 0px 0px var(--retro-black);
-        }
-        .retro-shadow-sm {
-            box-shadow: 3px 3px 0px 0px var(--retro-black);
-        }
-        .retro-shadow-hover:hover {
-            box-shadow: 8px 8px 0px 0px var(--retro-black);
-            transform: translate(-2px, -2px);
-        }
-        .font-mono-retro {
-            font-family: 'JetBrains Mono', monospace;
-        }
-        /* Override border colors to use variable */
-        .border-stone-900 {
-            border-color: var(--retro-black) !important;
-        }
-        .bg-stone-900 {
-            background-color: var(--retro-black) !important;
-        }
-        .text-stone-900 {
-            color: var(--retro-black) !important;
+            overflow-x: hidden;
         }
 
-        ::-webkit-scrollbar {
-            width: 12px;
+        /* Moving Static Texture Effect */
+        @keyframes noise {
+            0%, 100% { transform: translate(0, 0); }
+            10% { transform: translate(-1%, -1%); }
+            20% { transform: translate(-2%, 1%); }
+            30% { transform: translate(1%, -2%); }
+            40% { transform: translate(-1%, 3%); }
+            50% { transform: translate(-2%, 1%); }
+            60% { transform: translate(3%, 0); }
+            70% { transform: translate(0, 2%); }
+            80% { transform: translate(-3%, 0); }
+            90% { transform: translate(2%, 1%); }
         }
-        ::-webkit-scrollbar-track {
-            background: var(--retro-bg);
-            border-left: 2px solid var(--retro-black);
+
+        .noise-overlay {
+            position: fixed;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+            opacity: 0.04;
+            pointer-events: none;
+            z-index: 9999;
+            animation: noise 0.2s infinite;
         }
-        ::-webkit-scrollbar-thumb {
-            background: var(--retro-black);
-            border: 2px solid var(--retro-bg);
+
+        .retro-shadow { box-shadow: 8px 8px 0px 0px var(--retro-black); }
+        .retro-shadow-sm { box-shadow: 4px 4px 0px 0px var(--retro-black); }
+        .retro-shadow-hover:hover {
+            box-shadow: 12px 12px 0px 0px var(--retro-black);
+            transform: translate(-3px, -3px);
         }
-        .no-scrollbar::-webkit-scrollbar {
-            display: none;
+        .font-mono-retro { font-family: 'JetBrains Mono', monospace; }
+        
+        @keyframes floating {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-15px) rotate(5deg); }
         }
-        .no-scrollbar {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
+        .animate-float { animation: floating 4s ease-in-out infinite; }
+
+        @keyframes marquee {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
         }
+        .marquee-container { overflow: hidden; white-space: nowrap; width: 100%; }
+        .marquee-content { display: inline-block; animation: marquee 30s linear infinite; }
+
+        @keyframes scanline {
+            0% { bottom: 100%; }
+            100% { bottom: 0%; }
+        }
+        .scanline-effect::after {
+            content: "";
+            position: absolute;
+            width: 100%;
+            height: 2px;
+            background: rgba(0, 0, 0, 0.1);
+            animation: scanline 6s linear infinite;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar { width: 12px; }
+        ::-webkit-scrollbar-track { background: var(--retro-bg); border-left: 3px solid var(--retro-black); }
+        ::-webkit-scrollbar-thumb { background: var(--retro-black); border: 3px solid var(--retro-bg); }
     </style>
     <script type="importmap">
-{
-  "imports": {
-    "react": "https://esm.sh/react@19.0.0",
-    "react-dom": "https://esm.sh/react-dom@19.0.0",
-    "react-dom/client": "https://esm.sh/react-dom@19.0.0/client",
-    "recharts": "https://esm.sh/recharts@2.15.0?external=react,react-dom",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-    "react/": "https://esm.sh/react@^19.2.3/"
-  }
-}
-</script>
+    {
+      "imports": {
+        "react": "https://esm.sh/react@19.0.0",
+        "react-dom": "https://esm.sh/react-dom@19.0.0",
+        "react-dom/client": "https://esm.sh/react-dom@19.0.0/client",
+        "recharts": "https://esm.sh/recharts@2.15.0?external=react,react-dom",
+        "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+        "react/": "https://esm.sh/react@^19.2.3/",
+        "@google/genai": "https://esm.sh/@google/genai@^1.34.0",
+        "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.45.1"
+      }
+    }
+    </script>
 <link rel="stylesheet" href="/index.css">
 </head>
-<body class="overflow-x-hidden">
+<body>
+    <div class="noise-overlay"></div>
     <div id="root"></div>
 <script type="module" src="/index.tsx"></script>
 </body>

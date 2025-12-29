@@ -1,33 +1,34 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Transaction, TransactionType, Account, SummaryData, Theme, Budget } from './types';
+import { Transaction, TransactionType, Account, SummaryData, Theme, Budget, User } from './types';
 import { Icons, THEMES } from './constants';
 import Dashboard from './components/Dashboard';
 import TransactionForm from './components/TransactionForm';
 import TransactionList from './components/TransactionList';
-import FinanceCharts from './components/FinanceCharts';
 import AccountModal from './components/AccountModal';
 import Sidebar from './components/Sidebar';
 import WalletsView from './components/WalletsView';
 import ConfirmationModal from './components/ConfirmationModal';
-import CategoryBreakdown from './components/CategoryBreakdown';
 import BudgetView from './components/BudgetView';
+import LoginView from './components/LoginView';
+import LandingPage from './components/LandingPage';
+import { supabase, isSupabaseConfigured } from './lib/supabase';
 
 const App: React.FC = () => {
-  const [transactions, setTransactions] = useState<Transaction[]>(() => {
-    const saved = localStorage.getItem('myDuwit_transactions');
-    return saved ? JSON.parse(saved) : [];
+  const [user, setUser] = useState<User | null>(() => {
+    const saved = localStorage.getItem('myDuwit_user');
+    return saved ? JSON.parse(saved) : null;
   });
 
-  const [accounts, setAccounts] = useState<Account[]>(() => {
-    const saved = localStorage.getItem('myDuwit_accounts');
-    return saved ? JSON.parse(saved) : [];
+  const [viewMode, setViewMode] = useState<'landing' | 'auth' | 'app'>(() => {
+    const saved = localStorage.getItem('myDuwit_user');
+    return saved ? 'app' : 'landing';
   });
 
-  const [budgets, setBudgets] = useState<Budget[]>(() => {
-    const saved = localStorage.getItem('myDuwit_budgets');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [loading, setLoading] = useState(false);
 
   const [currentTheme, setCurrentTheme] = useState<Theme>(() => {
     const saved = localStorage.getItem('myDuwit_theme');
@@ -39,25 +40,52 @@ const App: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
+  const [accountToEdit, setAccountToEdit] = useState<Account | undefined>(undefined);
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
-  // Deletion state
   const [deleteConfig, setDeleteConfig] = useState<{
     type: 'transaction' | 'account';
     id: string;
     isOpen: boolean;
   }>({ type: 'transaction', id: '', isOpen: false });
 
-  useEffect(() => {
-    localStorage.setItem('myDuwit_transactions', JSON.stringify(transactions));
-  }, [transactions]);
+  const fetchData = async (userId: string) => {
+    if (!isSupabaseConfigured) return;
+    setLoading(true);
+    try {
+      const [accRes, transRes, budRes] = await Promise.all([
+        supabase.from('accounts').select('*').eq('user_id', userId),
+        supabase.from('transactions').select('*').eq('user_id', userId).order('date', { ascending: false }),
+        supabase.from('budgets').select('*').eq('user_id', userId)
+      ]);
+      if (accRes.error) throw accRes.error;
+      if (transRes.error) throw transRes.error;
+      if (budRes.error) throw budRes.error;
+
+      setAccounts(accRes.data.map(a => ({ id: a.id, name: a.name, type: a.type, initialBalance: a.initial_balance })));
+      // Fix: Renamed account_id to accountId to match Transaction interface
+      setTransactions(transRes.data.map(t => ({ id: t.id, amount: t.amount, type: t.type, category: t.category, description: t.description, date: t.date, accountId: t.account_id, createdAt: t.created_at })));
+      setBudgets(budRes.data.map(b => ({ category: b.category, limit: b.limit_amount })));
+    } catch (err) {
+      console.error("Error fetching data:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    localStorage.setItem('myDuwit_accounts', JSON.stringify(accounts));
-  }, [accounts]);
-
-  useEffect(() => {
-    localStorage.setItem('myDuwit_budgets', JSON.stringify(budgets));
-  }, [budgets]);
+    if (user) {
+      fetchData(user.id);
+      localStorage.setItem('myDuwit_user', JSON.stringify(user));
+      setViewMode('app');
+    } else {
+      localStorage.removeItem('myDuwit_user');
+      setTransactions([]);
+      setAccounts([]);
+      setBudgets([]);
+      if (viewMode !== 'auth') setViewMode('landing');
+    }
+  }, [user]);
 
   useEffect(() => {
     localStorage.setItem('myDuwit_theme', currentTheme.id);
@@ -67,223 +95,143 @@ const App: React.FC = () => {
     root.style.setProperty('--card-bg', currentTheme.cardBg);
   }, [currentTheme]);
 
-  const addTransaction = (t: Omit<Transaction, 'id'>) => {
-    const newTransaction: Transaction = { 
-      ...t, 
-      id: crypto.randomUUID(),
-      createdAt: t.createdAt || new Date().toISOString()
-    };
-    setTransactions(prev => [newTransaction, ...prev]);
-    setIsFormOpen(false);
+  const handleLogin = (u: User) => {
+    setUser(u);
+    setActiveTab('dashboard');
+    setViewMode('app');
   };
 
-  const addAccount = (acc: Omit<Account, 'id'>) => {
-    const newAcc: Account = { ...acc, id: crypto.randomUUID() };
-    setAccounts(prev => [...prev, newAcc]);
-    setIsAccountModalOpen(false);
+  const handleLogout = async () => {
+    if (isSupabaseConfigured) await supabase.auth.signOut();
+    setUser(null);
+    setIsLogoutModalOpen(false);
+    setViewMode('landing');
   };
 
-  const saveBudget = (category: string, limit: number) => {
-    setBudgets(prev => {
-      const filtered = prev.filter(b => b.category !== category);
-      return [...filtered, { category, limit }];
-    });
+  const addTransaction = async (t: Omit<Transaction, 'id'>) => {
+    if (!user || !isSupabaseConfigured) return;
+    try {
+      const { data, error } = await supabase.from('transactions').insert([{ user_id: user.id, amount: t.amount, type: t.type, category: t.category, description: t.description, date: t.date, account_id: t.accountId }]).select();
+      if (error) throw error;
+      setTransactions(prev => [{ ...t, id: data[0].id, createdAt: data[0].created_at }, ...prev]);
+      setIsFormOpen(false);
+    } catch (err) { console.error(err); }
   };
 
-  const initiateDelete = (type: 'transaction' | 'account', id: string) => {
-    setDeleteConfig({ type, id, isOpen: true });
+  const saveAccount = async (acc: Account | Omit<Account, 'id'>) => {
+    if (!user || !isSupabaseConfigured) return;
+    try {
+      if ('id' in acc) {
+        // Fix: Renamed acc.initial_balance to acc.initialBalance to match Account interface
+        await supabase.from('accounts').update({ name: acc.name, type: acc.type, initial_balance: acc.initialBalance }).eq('id', acc.id);
+        setAccounts(prev => prev.map(a => a.id === acc.id ? acc as Account : a));
+      } else {
+        const { data } = await supabase.from('accounts').insert([{ user_id: user.id, name: acc.name, type: acc.type, initial_balance: acc.initialBalance }]).select();
+        setAccounts(prev => [...prev, { ...acc, id: data[0].id }]);
+      }
+      setIsAccountModalOpen(false);
+    } catch (err) { console.error(err); }
   };
 
-  const handleConfirmDelete = () => {
-    if (deleteConfig.type === 'transaction') {
-      setTransactions(prev => prev.filter(t => t.id !== deleteConfig.id));
-    } else {
-      // Clean up transactions associated with this account
-      setTransactions(prev => prev.filter(t => t.accountId !== deleteConfig.id));
-      setAccounts(prev => prev.filter(a => a.id !== deleteConfig.id));
-    }
+  const saveBudget = async (category: string, limit: number) => {
+    if (!user || !isSupabaseConfigured) return;
+    try {
+      const { data: existing } = await supabase.from('budgets').select('id').eq('user_id', user.id).eq('category', category).single();
+      if (existing) await supabase.from('budgets').update({ limit_amount: limit }).eq('id', existing.id);
+      else await supabase.from('budgets').insert([{ user_id: user.id, category, limit_amount: limit }]);
+      setBudgets(prev => [...prev.filter(b => b.category !== category), { category, limit }]);
+    } catch (err) { console.error(err); }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!isSupabaseConfigured) return;
+    try {
+      if (deleteConfig.type === 'transaction') {
+        await supabase.from('transactions').delete().eq('id', deleteConfig.id);
+        setTransactions(prev => prev.filter(t => t.id !== deleteConfig.id));
+      } else {
+        await supabase.from('accounts').delete().eq('id', deleteConfig.id);
+        setTransactions(prev => prev.filter(t => t.accountId !== deleteConfig.id));
+        setAccounts(prev => prev.filter(a => a.id !== deleteConfig.id));
+      }
+    } catch (err) { console.error(err); }
     setDeleteConfig(prev => ({ ...prev, isOpen: false }));
   };
 
   const summary = useMemo<SummaryData>(() => {
     const accountBalances: Record<string, number> = {};
-    accounts.forEach(acc => {
-      accountBalances[acc.id] = acc.initialBalance;
-    });
-
+    accounts.forEach(acc => accountBalances[acc.id] = acc.initialBalance);
     let totalIncome = 0;
     let totalExpense = 0;
-
     transactions.forEach(t => {
-      const amount = t.amount;
       if (t.type === TransactionType.INCOME) {
-        totalIncome += amount;
-        if (accountBalances[t.accountId] !== undefined) {
-          accountBalances[t.accountId] += amount;
-        }
+        totalIncome += t.amount;
+        if (accountBalances[t.accountId] !== undefined) accountBalances[t.accountId] += t.amount;
       } else {
-        totalExpense += amount;
-        if (accountBalances[t.accountId] !== undefined) {
-          accountBalances[t.accountId] -= amount;
-        }
+        totalExpense += t.amount;
+        if (accountBalances[t.accountId] !== undefined) accountBalances[t.accountId] -= t.amount;
       }
     });
-
-    const totalBalance = Object.values(accountBalances).reduce((a, b) => a + b, 0);
-
-    return { totalIncome, totalExpense, totalBalance, accountBalances };
+    return { totalIncome, totalExpense, totalBalance: Object.values(accountBalances).reduce((a, b) => a + b, 0), accountBalances };
   }, [transactions, accounts]);
 
-  const renderActiveView = () => {
-    switch (activeTab) {
-      case 'dashboard':
-        return (
-          <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <Dashboard summary={summary} onNavigateToWallets={() => setActiveTab('wallets')} />
-            
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <div className="lg:col-span-2 space-y-10">
-                <FinanceCharts transactions={transactions} />
-                <TransactionList 
-                  transactions={transactions.slice(0, 5)} 
-                  accounts={accounts}
-                  onDelete={(id) => initiateDelete('transaction', id)}
-                  showFilters={false}
-                />
-                {transactions.length > 5 && (
-                  <button 
-                    onClick={() => setActiveTab('history')}
-                    className="w-full py-4 border-4 border-dashed border-stone-400 font-bold uppercase text-stone-500 hover:text-stone-900 hover:border-stone-900 transition-all bg-white/50"
-                  >
-                    Lihat Seluruh Riwayat
-                  </button>
-                )}
-              </div>
-              
-              <div className="lg:col-span-1">
-                <div className="sticky top-8 space-y-8">
-                  <button 
-                    onClick={() => setIsFormOpen(true)}
-                    disabled={accounts.length === 0}
-                    className="w-full bg-[#63e6be] border-4 border-stone-900 p-6 retro-shadow-hover transition-all flex items-center justify-center gap-3 text-xl font-bold text-stone-900 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <Icons.Plus /> CATAT BARU
-                  </button>
-                  
-                  <div className="bg-[#74c0fc] border-4 border-stone-900 p-6 retro-shadow">
-                    <h3 className="text-xl font-bold mb-2 uppercase">Status Keuangan</h3>
-                    <p className="text-stone-900 italic font-medium">
-                      {summary.totalBalance > 0 
-                        ? "Kerja bagus! Saldo kamu positif. Tetap jaga pengeluaran ya!"
-                        : "Aduh, saldo lagi tipis nih. Yuk mulai berhemat hari ini."}
-                    </p>
-                  </div>
+  if (viewMode === 'landing') {
+    return <LandingPage onStart={() => setViewMode('auth')} />;
+  }
 
-                  <CategoryBreakdown transactions={transactions} />
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-      case 'wallets':
-        return (
-          <WalletsView 
-            accounts={accounts} 
-            summary={summary} 
-            onAddAccount={() => setIsAccountModalOpen(true)}
-            onDeleteAccount={(id) => initiateDelete('account', id)}
-          />
-        );
-      case 'budgets':
-        return (
-          <BudgetView 
-            transactions={transactions} 
-            budgets={budgets} 
-            onSaveBudget={saveBudget} 
-          />
-        );
-      case 'history':
-        return (
-          <div className="max-w-4xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <TransactionList 
-              transactions={transactions} 
-              accounts={accounts}
-              onDelete={(id) => initiateDelete('transaction', id)} 
-              showFilters={true}
-            />
-          </div>
-        );
-    }
-  };
+  if (viewMode === 'auth') {
+    return <LoginView onLogin={handleLogin} onBack={() => setViewMode('landing')} />;
+  }
 
   return (
-    <div className="min-h-screen bg-transparent flex">
-      <Sidebar 
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-        isOpen={isSidebarOpen}
-        onClose={() => setIsSidebarOpen(false)}
-        currentTheme={currentTheme}
-        onThemeChange={setCurrentTheme}
-      />
-
-      <main className="flex-1 lg:ml-64 p-4 md:p-8">
-        <header className="flex justify-between items-center mb-8 pb-4 border-b-4 border-stone-900">
-          <div className="flex items-center gap-4">
-            <button 
-              onClick={() => setIsSidebarOpen(true)}
-              className="lg:hidden p-2 border-4 border-stone-900 bg-white"
-            >
-              <Icons.Menu />
-            </button>
-            <h1 className="text-3xl font-black uppercase italic tracking-tighter text-stone-900">
-              {activeTab === 'dashboard' ? 'Overview' : activeTab === 'wallets' ? 'My Wallets' : activeTab === 'budgets' ? 'My Budgets' : 'Riwayat'}
-            </h1>
-          </div>
-          <div className="hidden sm:block text-right">
-            <span className="text-xs font-black uppercase tracking-widest bg-stone-900 text-white px-2 py-1 border-2 border-stone-900">
-              {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
-            </span>
-          </div>
-        </header>
-
-        {renderActiveView()}
-      </main>
-
-      {isFormOpen && (
-        <TransactionForm 
-          accounts={accounts}
-          onAdd={addTransaction} 
-          onClose={() => setIsFormOpen(false)} 
-        />
+    <div className="min-h-screen bg-transparent flex flex-col relative overflow-hidden">
+      {!isSupabaseConfigured && (
+        <div className="fixed top-8 left-1/2 -translate-x-1/2 z-[100] w-full max-w-lg px-4">
+           <div className="bg-rose-500 text-white p-4 border-4 border-stone-900 shadow-[8px_8px_0px_0px_#1c1917] text-center">
+             <p className="font-black uppercase italic tracking-tighter">⚠️ SYSTEM WARNING: SUPABASE CONFIG MISSING</p>
+           </div>
+        </div>
       )}
 
-      {isAccountModalOpen && (
-        <AccountModal 
-          onSave={addAccount}
-          onClose={() => setIsAccountModalOpen(false)}
-        />
-      )}
+      <div className="flex flex-1">
+        <Sidebar activeTab={activeTab} onTabChange={setActiveTab} isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} currentTheme={currentTheme} onThemeChange={setCurrentTheme} user={user} onLogout={() => setIsLogoutModalOpen(true)} />
 
-      <ConfirmationModal
-        isOpen={deleteConfig.isOpen}
-        title={deleteConfig.type === 'account' ? 'Hapus Wallet?' : 'Hapus Transaksi?'}
-        message={
-          deleteConfig.type === 'account' 
-            ? 'Menghapus wallet ini juga akan menghapus semua riwayat transaksi yang terkait dengannya. Tindakan ini tidak bisa dibatalkan.'
-            : 'Apakah kamu yakin ingin menghapus catatan transaksi ini? Data akan hilang selamanya.'
-        }
-        onConfirm={handleConfirmDelete}
-        onCancel={() => setDeleteConfig(prev => ({ ...prev, isOpen: false }))}
-      />
+        <main className="flex-1 lg:ml-64 p-4 sm:p-6 md:p-8 relative z-10 w-full overflow-x-hidden">
+          <header className="flex flex-row justify-between items-center mb-8 md:mb-12 pb-4 border-b-8 border-stone-900 gap-4">
+            <div className="flex items-center gap-4 md:gap-6 min-w-0">
+              <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden p-2 sm:p-3 border-4 border-stone-900 bg-white retro-shadow-sm shrink-0"><Icons.Menu /></button>
+              <div className="relative min-w-0">
+                <h1 className="text-2xl sm:text-4xl md:text-6xl font-black uppercase italic tracking-tighter text-stone-900 whitespace-nowrap pr-4">
+                  {activeTab === 'dashboard' ? 'Overview' : activeTab === 'wallets' ? 'Wallets' : activeTab === 'budgets' ? 'Budget' : 'Riwayat'}
+                </h1>
+              </div>
+            </div>
+            {loading && <div className="animate-spin"><Icons.Palette /></div>}
+          </header>
 
-      <button 
-        onClick={() => setIsFormOpen(true)}
-        disabled={accounts.length === 0}
-        className="fixed bottom-6 right-6 lg:hidden bg-[#63e6be] border-4 border-stone-900 w-16 h-16 rounded-none flex items-center justify-center retro-shadow-hover z-50 text-stone-900 disabled:opacity-50"
-      >
-        <Icons.Plus />
-      </button>
+          <div className="max-w-[1400px] mx-auto">
+            {activeTab === 'dashboard' && (
+              <Dashboard 
+                summary={summary} 
+                user={user} 
+                transactions={transactions} 
+                accounts={accounts} 
+                onDeleteTransaction={(id) => setDeleteConfig({type:'transaction', id, isOpen: true})}
+                onNavigateToWallets={() => setActiveTab('wallets')} 
+              />
+            )}
+            {activeTab === 'wallets' && <WalletsView accounts={accounts} summary={summary} onAddAccount={() => {setAccountToEdit(undefined); setIsAccountModalOpen(true);}} onEditAccount={(acc) => {setAccountToEdit(acc); setIsAccountModalOpen(true);}} onDeleteAccount={(id) => setDeleteConfig({type:'account', id, isOpen: true})} />}
+            {activeTab === 'budgets' && <BudgetView transactions={transactions} budgets={budgets} onSaveBudget={saveBudget} />}
+            {activeTab === 'history' && <TransactionList transactions={transactions} accounts={accounts} onDelete={(id) => setDeleteConfig({type:'transaction', id, isOpen: true})} showFilters={true} />}
+          </div>
+        </main>
+      </div>
+
+      {isFormOpen && <TransactionForm accounts={accounts} onAdd={addTransaction} onClose={() => setIsFormOpen(false)} />}
+      {isAccountModalOpen && <AccountModal onSave={saveAccount} onClose={() => {setIsAccountModalOpen(false); setAccountToEdit(undefined);}} initialData={accountToEdit} />}
+      <ConfirmationModal isOpen={deleteConfig.isOpen} title={deleteConfig.type === 'account' ? 'Hapus Wallet?' : 'Hapus Transaksi?'} message="Apakah kamu yakin ingin menghapus data ini secara permanen dari cloud?" onConfirm={handleConfirmDelete} onCancel={() => setDeleteConfig(prev => ({ ...prev, isOpen: false }))} />
+      <ConfirmationModal isOpen={isLogoutModalOpen} title="Logout Sesi?" message="Anda akan keluar dari sesi aman cloud Anda." confirmLabel="Logout" onConfirm={handleLogout} onCancel={() => setIsLogoutModalOpen(false)} variant="warning" />
+      <button onClick={() => setIsFormOpen(true)} disabled={accounts.length === 0} className="fixed bottom-6 right-6 lg:hidden bg-[#63e6be] border-4 border-stone-900 w-16 h-16 rounded-none flex items-center justify-center retro-shadow-hover z-50 text-stone-900 disabled:opacity-50"><Icons.Plus /></button>
     </div>
   );
 };

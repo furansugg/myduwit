@@ -22,20 +22,17 @@ export const INCOME_CATEGORIES = [
 ];
 
 export const CATEGORY_COLORS: Record<string, string> = {
-  // Expense Colors
   Food: '#ff90e8',
   Transport: '#23a094',
   Leisure: '#ffbe0b',
   Housing: '#fb5607',
   Shopping: '#74c0fc',
   Health: '#63e6be',
-  // Income Colors
   Salary: '#00f5d4',
   Freelance: '#9b5de5',
   Gift: '#ffc9c9',
   Investment: '#be4bdb',
   Bonus: '#fcc419',
-  // Generic
   Others: '#ced4da'
 };
 
@@ -132,5 +129,11 @@ export const Icons = {
   ),
   Target: () => (
     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+  ),
+  User: () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+  ),
+  LogOut: () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
   )
 };

@@ -1,5 +1,7 @@
+
 {
   "name": "myDuwit - Retro Finance Tracker",
   "description": "A stylish, soft-retro financial tracking application to manage your income, expenses, and savings with ease and nostalgic flair.",
+  "version": "2.3.1",
   "requestFramePermissions": []
 }

@@ -16,6 +16,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ accounts, onAdd, onCl
   const [description, setDescription] = useState('');
   const [accountId, setAccountId] = useState(accounts[0]?.id || '');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [error, setError] = useState('');
 
   // Reset category to 'Others' when switching between Income and Expense
   useEffect(() => {
@@ -29,14 +30,25 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ accounts, onAdd, onCl
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const rawValue = e.target.value.replace(/\D/g, '');
+    setError(''); // Clear error when user starts typing
     setAmount(formatDisplay(rawValue));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const numericAmount = parseFloat(amount.replace(/\./g, ''));
-    if (!numericAmount || numericAmount <= 0 || !accountId) return;
+    
+    if (!accountId) {
+      setError('SILAKAN PILIH SUMBER DANA!');
+      return;
+    }
 
+    if (!numericAmount || numericAmount <= 0) {
+      setError('JUMLAH HARUS LEBIH DARI NOL (0)!');
+      return;
+    }
+
+    setError('');
     onAdd({
       amount: numericAmount,
       type,
@@ -61,18 +73,24 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ accounts, onAdd, onCl
           <button onClick={onClose} className="text-stone-600 hover:text-stone-900 font-bold hover:underline transition-all underline-offset-4">[ TUTUP ]</button>
         </div>
 
+        {error && (
+          <div className="mb-4 bg-rose-500 text-white p-3 text-center font-black text-xs border-4 border-stone-900 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] animate-bounce">
+            {error}
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="flex border-4 border-stone-900 overflow-hidden bg-white">
             <button
               type="button"
-              onClick={() => setType(TransactionType.EXPENSE)}
+              onClick={() => { setType(TransactionType.EXPENSE); setError(''); }}
               className={`flex-1 py-3 font-bold uppercase transition-colors ${type === TransactionType.EXPENSE ? 'bg-rose-300 text-stone-900 border-r-4 border-stone-900' : 'bg-white text-stone-400 border-r-4 border-stone-900'}`}
             >
               Keluar
             </button>
             <button
               type="button"
-              onClick={() => setType(TransactionType.INCOME)}
+              onClick={() => { setType(TransactionType.INCOME); setError(''); }}
               className={`flex-1 py-3 font-bold uppercase transition-colors ${type === TransactionType.INCOME ? 'bg-emerald-300 text-stone-900' : 'bg-white text-stone-400'}`}
             >
               Masuk
@@ -89,7 +107,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ accounts, onAdd, onCl
                 inputMode="numeric"
                 value={amount}
                 onChange={handleAmountChange}
-                className="w-full border-4 border-stone-900 p-3 pl-12 font-mono-retro text-xl outline-none focus:ring-4 focus:ring-emerald-200 bg-white"
+                className={`w-full border-4 border-stone-900 p-3 pl-12 font-mono-retro text-xl outline-none transition-all bg-white ${error && amount === '0' ? 'bg-rose-50 ring-4 ring-rose-200' : 'focus:ring-4 focus:ring-emerald-200'}`}
                 placeholder="0"
               />
             </div>
@@ -100,7 +118,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ accounts, onAdd, onCl
             <select 
               required
               value={accountId}
-              onChange={(e) => setAccountId(e.target.value)}
+              onChange={(e) => { setAccountId(e.target.value); setError(''); }}
               className="w-full border-4 border-stone-900 p-3 bg-white outline-none font-bold"
             >
               <option value="" disabled>Pilih Sumber...</option>

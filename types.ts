@@ -24,6 +24,17 @@ export type CategoryType =
   | 'Bonus'
   | 'Others';
 
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  loginTime: string;
+}
+
+export interface AuthUser extends User {
+  password?: string; // Only used for simulated local storage DB
+}
+
 export interface Account {
   id: string;
   name: string;
@@ -59,7 +70,7 @@ export interface Theme {
   name: string;
   bg: string;
   black: string;
-  accent1: string; // Sidebar header
-  accent2: string; // Sidebar footer
+  accent1: string;
+  accent2: string;
   cardBg: string;
 }
