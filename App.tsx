@@ -217,7 +217,9 @@ const App: React.FC = () => {
                 transactions={transactions} 
                 accounts={accounts} 
                 onDeleteTransaction={(id) => setDeleteConfig({type:'transaction', id, isOpen: true})}
-                onNavigateToWallets={() => setActiveTab('wallets')} 
+                onNavigateToWallets={() => setActiveTab('wallets')}
+                onAddTransaction={() => setIsFormOpen(true)}
+                isAddDisabled={accounts.length === 0}
               />
             )}
             {activeTab === 'wallets' && <WalletsView accounts={accounts} summary={summary} onAddAccount={() => {setAccountToEdit(undefined); setIsAccountModalOpen(true);}} onEditAccount={(acc) => {setAccountToEdit(acc); setIsAccountModalOpen(true);}} onDeleteAccount={(id) => setDeleteConfig({type:'account', id, isOpen: true})} />}
